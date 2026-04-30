@@ -1,11 +1,36 @@
 import { useEffect, useState } from 'react';
 
-import { View, Text, StyleSheet, Image, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 
 import Constants from 'expo-constants';
+
 import * as Location from 'expo-location';
 
+import { Sun, Cloud, CloudRain, CloudLightning, CloudFog } from 'lucide-react-native';
+
 const API_KEY = Constants.expoConfig?.extra?.WEATHER_API_KEY;
+
+const WeatherIcon = ({ condition }: { condition: string }) => {
+  const text = condition.toLowerCase();
+
+  if (text.includes('sun') || text.includes('clear')) {
+    return <Sun size={220} color="black" strokeWidth={1.5} />;
+  }
+
+  if (text.includes('cloud')) {
+    return <Cloud size={220} color="black" strokeWidth={1.5} />;
+  }
+
+  if (text.includes('rain') || text.includes('drizzle')) {
+    return <CloudRain size={220} color="black" strokeWidth={1.5} />;
+  }
+
+  if (text.includes('storm') || text.includes('thunder')) {
+    return <CloudLightning size={220} color="black" strokeWidth={1.5} />;
+  }
+
+  return <CloudFog size={220} color="black" strokeWidth={1.5} />;
+};
 
 export default function HomeScreen() {
   const [weather, setWeather] = useState<any>(null);
@@ -45,40 +70,39 @@ export default function HomeScreen() {
         reverseGeocode[0]?.region ||
         'Unknown';
 
-      // FECHA AYER
+      // AYER
       const yesterday = new Date();
 
       yesterday.setDate(yesterday.getDate() - 1);
 
       const formattedYesterday = yesterday.toISOString().split('T')[0];
 
-      // AYER
+      // HISTORIAL
       const historyResponse = await fetch(
         `https://api.weatherapi.com/v1/history.json?key=${API_KEY}&q=${latitude},${longitude}&dt=${formattedYesterday}`
       );
 
       const historyData = await historyResponse.json();
 
-      // HOY + MAÑANA
+      // FORECAST
       const forecastResponse = await fetch(
         `https://api.weatherapi.com/v1/forecast.json?key=${API_KEY}&q=${latitude},${longitude}&days=2&aqi=no&alerts=no`
       );
 
       const forecastData = await forecastResponse.json();
 
-      // VALIDAR RESPUESTAS
+      // VALIDAR
       if (historyData.error || forecastData.error) {
-        console.log('API Error:', historyData.error || forecastData.error);
+        console.log(historyData.error || forecastData.error);
 
         return;
       }
 
-      // EVITAR UNDEFINED
+      // COMBINAR
       const historyDay = historyData?.forecast?.forecastday?.[0];
 
       const forecastDays = forecastData?.forecast?.forecastday || [];
 
-      // COMBINAR
       const combinedDays = [historyDay, ...forecastDays].filter(Boolean);
 
       setWeather({
@@ -110,7 +134,7 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      {/* TOP DATE NAV */}
+      {/* TOP DATES */}
       <View style={styles.topBar}>
         {[0, 1, 2].map((dayIndex) => {
           const date = new Date();
@@ -142,14 +166,11 @@ export default function HomeScreen() {
       <Text style={styles.city}>{weather.city.toUpperCase()}</Text>
 
       {/* ICON */}
-      <Image
-        source={{
-          uri: 'https:' + currentDay.day.condition.icon.replace('64x64', '128x128'),
-        }}
-        style={styles.weatherIcon}
-      />
+      <View style={styles.weatherIcon}>
+        <WeatherIcon condition={currentDay.day.condition.text} />
+      </View>
 
-      {/* INFO */}
+      {/* METRICS */}
       <View style={styles.metricsContainer}>
         <View style={styles.metricRow}>
           <Text style={styles.metricIcon}>💧</Text>
@@ -172,12 +193,15 @@ export default function HomeScreen() {
 
       {/* TEMPERATURES */}
       <View style={styles.temperatureRow}>
+        {/* MIN */}
         <Text style={styles.sideTemperature}>{Math.round(currentDay.day.mintemp_c)}°</Text>
 
+        {/* CURRENT ONLY TODAY */}
         {selectedDay === 1 && (
           <Text style={styles.mainTemperature}>{Math.round(weather.current.temp_c)}°</Text>
         )}
 
+        {/* MAX */}
         <Text style={styles.sideTemperature}>{Math.round(currentDay.day.maxtemp_c)}°</Text>
       </View>
 
@@ -242,16 +266,15 @@ const styles = StyleSheet.create({
   },
 
   weatherIcon: {
-    width: 240,
-    height: 240,
-    alignSelf: 'center',
-    marginBottom: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
   },
 
   metricsContainer: {
     position: 'absolute',
     left: 24,
-    top: 320,
+    top: 420,
     gap: 12,
   },
 
